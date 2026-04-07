@@ -1,0 +1,84 @@
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.2.18
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr=internal://0.0.0.0:8082
+      - --advertise-pandaproxy-addr=internal://redpanda:8082
+    ports:
+      - "19092:19092"
+      - "18082:8082"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy: *true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./outputs:/app/outputs
+    command: >
+      python -m sitepulse_ai.cli
+      --detector-model ${DETECTOR_MODEL:-/app/models/detect_best.pt}
+      --parts-model ${PARTS_MODEL:-/app/models/instance_best.pt}
+      --source ${SOURCE_VIDEO:-/app/data/input.mp4}
+      --output-video /app/outputs/processed.mp4
+      --events-jsonl /app/outputs/events.jsonl
+      --summary-json /app/outputs/summary.json
+      --device ${DEVICE:-cpu}
+      --detector-imgsz ${DETECTOR_IMGSZ:-960}
+      --parts-imgsz ${PARTS_IMGSZ:-640}
+      --detector-conf ${DETECTOR_CONF:-0.15}
+      --detector-iou ${DETECTOR_IOU:-0.50}
+      --parts-conf ${PARTS_CONF:-0.15}
+      --reid-max-missing-frames ${REID_MAX_MISSING_FRAMES:-45}
+      --reid-min-similarity ${REID_MIN_SIMILARITY:-0.58}
+      --reid-max-center-dist-ratio ${REID_MAX_CENTER_DIST_RATIO:-0.18}
+      --kafka-bootstrap-servers redpanda:9092
+      --kafka-topic ${KAFKA_TOPIC:-equipment.events}
+      ${VERBOSE_FLAG:---verbose}
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/ui.Dockerfile
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:ro
+      - ./outputs:/app/outputs
+    command: >
+      streamlit run apps/streamlit_app.py
+      --server.address=0.0.0.0
+      --server.port=8501
+
+volumes:
+  redpanda-data:
