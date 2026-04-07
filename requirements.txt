@@ -1,0 +1,6 @@
+numpy
+opencv-python
+pandas
+streamlit
+ultralytics
+kafka-python
