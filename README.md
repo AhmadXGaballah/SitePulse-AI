@@ -34,8 +34,6 @@ The system is built as a practical microservices-style prototype for:
 - **streaming operational telemetry through Kafka**
 - **live operator-facing visualization in Streamlit**
 
-The current implementation focuses on **excavators** and **dump trucks**, with special treatment for articulated motion so an excavator can still be classified as **ACTIVE** when the tracks are stationary but the arm and bucket are working.
-
 ---
 
 ## Why This Matters
