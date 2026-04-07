@@ -53,6 +53,10 @@ SitePulse AI turns raw footage into operational signals:
 
 ---
 ## Preview
+<p align="center"><strong>🚧 Please allow a few moments for the preview to load 🚧 </strong></p>
+
+
+
 
 ### End-to-End Demo
 
